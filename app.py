@@ -4,22 +4,30 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-donnees_fichier = "donnees.txt"
+# L'URL du fichier donnees.txt sur GitHub
+donnees_url = "https://raw.githubusercontent.com/claude1424-ui/my-flask-app/main/donnees.txt"
 
 def charger_donnees():
     donnees = {}
-    if os.path.exists(donnees_fichier):
-        with open(donnees_fichier, 'r') as file:
-            lines = file.readlines()
+    try:
+        response = requests.get(donnees_url)
+        if response.status_code == 200:
+            lines = response.text.splitlines()
             for line in lines:
                 question, reponse = line.strip().split(":")
                 donnees[question.strip()] = reponse.strip()
+    except Exception as e:
+        print(f"Erreur lors du chargement des données : {e}")
     return donnees
 
 def enregistrer_donnees(donnees):
-    with open(donnees_fichier, 'w') as file:
-        for question, reponse in donnees.items():
-            file.write(f"{question}:{reponse}\n")
+    data_to_save = "\n".join([f"{question}:{reponse}" for question, reponse in donnees.items()])
+    try:
+        response = requests.put(donnees_url, data=data_to_save)
+        if response.status_code == 200:
+            print("Données enregistrées avec succès.")
+    except Exception as e:
+        print(f"Erreur lors de l'enregistrement des données : {e}")
 
 def recherche_internet(question):
     # Implémentez ici votre logique de recherche sur Internet
@@ -111,25 +119,21 @@ def chat():
 
             function addMessage(message, isUser) {
                 var messageElement = document.createElement('p');
-                messageElement.textContent = (isUser ? 'Vous : ' : 'Gpt : ') + message;
+                messageElement.textContent = (isUser ? 'Vous : ' : 'GPT : ') + message;
                 messageElement.className = isUser ? 'user-message' : 'gpt-message';
                 chatDiv.appendChild(messageElement);
             }
 
-            // Gestionnaire d'événement pour le bouton d'envoi
             sendButton.addEventListener('click', function() {
                 var message = messageInput.value;
                 if (message.trim() !== '') {
                     addMessage(message, true);
                     messageInput.value = '';
 
-                    // Envoyer le message au serveur pour traitement
                     fetch('/process_message', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ message: message })
+                        body: JSON.stringify({ message: message }),
+                        headers: { 'Content-Type': 'application/json' },
                     })
                     .then(response => response.json())
                     .then(data => {
