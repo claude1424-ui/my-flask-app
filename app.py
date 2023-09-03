@@ -4,10 +4,8 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Emplacement du fichier de données
 donnees_fichier = "donnees.txt"
 
-# Charger les données à partir du fichier
 def charger_donnees():
     donnees = {}
     if os.path.exists(donnees_fichier):
@@ -18,17 +16,13 @@ def charger_donnees():
                 donnees[question.strip()] = reponse.strip()
     return donnees
 
-# Enregistrer les données dans le fichier
 def enregistrer_donnees(donnees):
     with open(donnees_fichier, 'w') as file:
         for question, reponse in donnees.items():
             file.write(f"{question}:{reponse}\n")
 
-# Fonction pour rechercher sur Internet et générer une réponse
 def recherche_internet(question):
-    # Ici, vous pouvez implémenter votre logique de recherche sur Internet
-    # Par exemple, en utilisant des API de moteurs de recherche ou des bibliothèques de web scraping
-    # Pour l'exemple, nous retournons simplement un texte fictif
+    # Implémentez ici votre logique de recherche sur Internet
     return f"Réponse générée à partir de la recherche sur Internet pour la question : '{question}'"
 
 @app.route('/')
@@ -117,7 +111,7 @@ def chat():
 
             function addMessage(message, isUser) {
                 var messageElement = document.createElement('p');
-                messageElement.textContent = (isUser ? 'Vous : ' : 'GPT : ') + message;
+                messageElement.textContent = (isUser ? 'Vous : ' : 'Gpt : ') + message;
                 messageElement.className = isUser ? 'user-message' : 'gpt-message';
                 chatDiv.appendChild(messageElement);
             }
@@ -129,16 +123,18 @@ def chat():
                     addMessage(message, true);
                     messageInput.value = '';
 
-                    // Envoyer la question au serveur
+                    // Envoyer le message au serveur pour traitement
                     fetch('/process_message', {
                         method: 'POST',
-                        body: JSON.stringify({ message: message }),
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ message: message })
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            addMessage(data.message, false);
-                        });
+                    .then(response => response.json())
+                    .then(data => {
+                        addMessage(data.message, false);
+                    });
                 }
             });
         </script>
@@ -146,16 +142,13 @@ def chat():
     </html>
     """
 
-# Route pour traiter les messages
 @app.route('/process_message', methods=['POST'])
 def process_message():
     data = request.get_json()
     message = data.get('message', '')
 
-    # Charger les données actuelles à partir du fichier
     donnees_apprentissage = charger_donnees()
 
-    # Traitez le message ici et générez la réponse
     if ":" in message:
         question, reponse = message.split(":")
         question = question.strip()
@@ -168,7 +161,6 @@ def process_message():
             reponse = donnees_apprentissage[message]
             response = "GPT : " + reponse
         else:
-            # Si la question n'est pas trouvée dans les données, effectuer une recherche sur Internet
             reponse = recherche_internet(message)
             response = "GPT : " + reponse
 
