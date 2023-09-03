@@ -6,6 +6,26 @@ app = Flask(__name__)
 # Stockage des messages
 messages = []
 
+# Emplacement du fichier de données
+donnees_fichier = "donnees.txt"
+
+# Charger les données à partir du fichier
+def charger_donnees():
+    donnees = {}
+    if os.path.exists(donnees_fichier):
+        with open(donnees_fichier, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                question, reponse = line.strip().split(":")
+                donnees[question.strip()] = reponse.strip()
+    return donnees
+
+# Enregistrer les données dans le fichier
+def enregistrer_donnees(donnees):
+    with open(donnees_fichier, 'w') as file:
+        for question, reponse in donnees.items():
+            file.write(f"{question}:{reponse}\n")
+
 @app.route('/')
 def chat():
     return """
@@ -105,19 +125,26 @@ def chat():
                     messageInput.value = '';
                     // Envoyer le message au serveur ou effectuer le traitement souhaité ici
                     // Par exemple, vous pouvez utiliser une requête AJAX pour envoyer le message au serveur Flask
-                    fetch('/process_message', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ message: message })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        addMessage(data.message, false);
-                    });
+                    sendMessageToServer(message);
                 }
             });
+
+            // Fonction pour envoyer le message au serveur
+            function sendMessageToServer(message) {
+                fetch('/process_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    var responseMessage = data.message;
+                    addMessage(responseMessage, false);
+                })
+                .catch(error => console.error('Erreur lors de l\'envoi du message :', error));
+            }
         </script>
     </body>
     </html>
@@ -129,11 +156,20 @@ def process_message():
     data = request.get_json()
     message = data.get('message', '')
 
-    # Traitez le message ici et générez la réponse
-    # Par exemple, vous pouvez appeler votre fonction d'assistant GPT
+    # Charger les données actuelles à partir du fichier
+    donnees_apprentissage = charger_donnees()
 
-    # Pour cet exemple, nous renverrons simplement le message inversé
-    response = message[::-1]
+    # Traitez le message ici et générez la réponse
+    if ":" in message:
+        question, reponse = message.split(":")
+        question = question.strip()
+        reponse = reponse.strip()
+        donnees_apprentissage[question] = reponse
+        enregistrer_donnees(donnees_apprentissage)
+        response = f"J'ai appris la réponse à la question : '{question}'"
+    else:
+        reponse = donnees_apprentissage.get(message, "Je ne connais pas la réponse à cette question.")
+        response = "GPT : " + reponse
 
     return jsonify({'message': response})
 
