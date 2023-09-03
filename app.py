@@ -3,13 +3,16 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
+# Stockage des messages
+messages = []
+
 @app.route('/')
 def chat():
     return """
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Chat Flask</title>
+        <title>Chat GPT</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -61,22 +64,48 @@ def chat():
                 border-radius: 3px;
                 cursor: pointer;
             }
+
+            .user-message {
+                text-align: right;
+                color: #333;
+                margin: 5px 0;
+            }
+
+            .gpt-message {
+                text-align: left;
+                color: #0066cc;
+                margin: 5px 0;
+            }
         </style>
     </head>
     <body>
-        <h1>Chat Flask</h1>
+        <h1>Chat GPT</h1>
         <div id="chat-container">
             <div id="chat"></div>
             <input type="text" id="message" placeholder="Entrez votre message">
             <button id="send">Envoyer</button>
         </div>
         <script>
-            document.getElementById('send').addEventListener('click', function() {
-                var messageInput = document.getElementById('message');
+            var chatDiv = document.getElementById('chat');
+            var messageInput = document.getElementById('message');
+            var sendButton = document.getElementById('send');
+
+            function addMessage(message, isUser) {
+                var messageElement = document.createElement('p');
+                messageElement.textContent = (isUser ? 'Vous : ' : 'Gpt : ') + message;
+                messageElement.className = isUser ? 'user-message' : 'gpt-message';
+                chatDiv.appendChild(messageElement);
+            }
+
+            // Gestionnaire d'événement pour le bouton d'envoi
+            sendButton.addEventListener('click', function() {
                 var message = messageInput.value;
-                // Vous pouvez traiter le message ici et envoyer une réponse depuis le serveur Flask
-                // Par exemple, en utilisant une requête AJAX pour envoyer le message au serveur
-                messageInput.value = ''; // Effacez le champ de texte après avoir envoyé le message
+                if (message.trim() !== '') {
+                    addMessage(message, true);
+                    messageInput.value = '';
+                    // Envoyer le message au serveur ou effectuer le traitement souhaité ici
+                    // Par exemple, vous pouvez utiliser une requête AJAX pour envoyer le message au serveur Flask
+                }
             });
         </script>
     </body>
