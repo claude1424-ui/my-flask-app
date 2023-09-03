@@ -9,19 +9,21 @@ donnees_url = "https://raw.githubusercontent.com/claude1424-ui/my-flask-app/main
 
 def charger_donnees():
     donnees = {}
+    if os.path.exists(donnees_fichier):
+        with open(donnees_fichier, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                question, reponse = line.strip().split(":")
+                donnees[question.strip()] = reponse.strip()
     try:
         response = requests.get(donnees_url)
         if response.status_code == 200:
             lines = response.text.splitlines()
+            for line in lines:
+                question, reponse = line.strip().split(":")
+                donnees[question.strip()] = reponse.strip()
     except Exception as e:
         print(f"Erreur lors du chargement des données : {e}")
-    else:
-        if os.path.exists(donnees_fichier):
-            with open(donnees_fichier, 'r') as file:
-                lines = file.readlines()
-                for line in lines:
-                    question, reponse = line.strip().split(":")
-                    donnees[question.strip()] = reponse.strip()
     return donnees
 
 def enregistrer_donnees(donnees):
