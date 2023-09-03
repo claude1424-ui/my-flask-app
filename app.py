@@ -1,111 +1,82 @@
-import os
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Stockage des messages
-messages = []
+# Dictionnaire pour stocker les données d'apprentissage
+donnees_apprentissage = {}
+
+# Charger les données depuis un fichier JSON (si nécessaire)
+def charger_donnees():
+    try:
+        with open('donnees.json', 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+
+# Enregistrer les données dans un fichier JSON
+def enregistrer_donnees():
+    with open('donnees.json', 'w') as file:
+        json.dump(donnees_apprentissage, file)
 
 @app.route('/')
-def chat():
+def home():
     return """
     <!DOCTYPE html>
     <html>
     <head>
         <title>Chat GPT</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f0f0f0;
-                margin: 0;
-                padding: 0;
-            }
-
-            h1 {
-                background-color: #333;
-                color: #fff;
-                text-align: center;
-                padding: 10px;
-            }
-
-            #chat-container {
-                max-width: 600px;
-                margin: 20px auto;
-                padding: 20px;
-                background-color: #fff;
-                border: 1px solid #ccc;
-                border-radius: 5px;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            }
-
-            #chat {
-                margin-bottom: 10px;
-                padding: 10px;
-                background-color: #f9f9f9;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                min-height: 100px;
-                max-height: 300px;
-                overflow-y: scroll;
-            }
-
-            input[type="text"] {
-                width: 80%;
-                padding: 5px;
-                border: 1px solid #ccc;
-                border-radius: 3px;
-            }
-
-            button {
-                padding: 5px 10px;
-                background-color: #333;
-                color: #fff;
-                border: none;
-                border-radius: 3px;
-                cursor: pointer;
-            }
-
-            .user-message {
-                text-align: right;
-                color: #333;
-                margin: 5px 0;
-            }
-
-            .gpt-message {
-                text-align: left;
-                color: #0066cc;
-                margin: 5px 0;
-            }
-        </style>
     </head>
     <body>
         <h1>Chat GPT</h1>
-        <div id="chat-container">
-            <div id="chat"></div>
-            <input type="text" id="message" placeholder="Entrez votre message">
-            <button id="send">Envoyer</button>
-        </div>
+        <div id="chat"></div>
+        <input type="text" id="message" placeholder="Posez une question">
+        <button id="send">Envoyer</button>
+        
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script>
-            var chatDiv = document.getElementById('chat');
-            var messageInput = document.getElementById('message');
-            var sendButton = document.getElementById('send');
+            $(document).ready(function() {
+                var chatDiv = $("#chat");
+                var messageInput = $("#message");
+                var sendButton = $("#send");
 
-            function addMessage(message, isUser) {
-                var messageElement = document.createElement('p');
-                messageElement.textContent = (isUser ? 'Vous : ' : 'Gpt : ') + message;
-                messageElement.className = isUser ? 'user-message' : 'gpt-message';
-                chatDiv.appendChild(messageElement);
-            }
-
-            // Gestionnaire d'événement pour le bouton d'envoi
-            sendButton.addEventListener('click', function() {
-                var message = messageInput.value;
-                if (message.trim() !== '') {
-                    addMessage(message, true);
-                    messageInput.value = '';
-                    // Envoyer le message au serveur ou effectuer le traitement souhaité ici
-                    // Par exemple, vous pouvez utiliser une requête AJAX pour envoyer le message au serveur Flask
+                // Fonction pour afficher un message dans le chat
+                function showMessage(message, sender) {
+                    var messageClass = sender === "Vous" ? "user-message" : "gpt-message";
+                    chatDiv.append("<p class='" + messageClass + "'>" + message + "</p>");
                 }
+
+                // Fonction pour envoyer un message
+                function sendMessage() {
+                    var utilisateur_question = messageInput.val();
+                    showMessage("Vous : " + utilisateur_question, "Vous");
+
+                    if (utilisateur_question.toLowerCase() === "au revoir") {
+                        showMessage("GPT : Au revoir! À la prochaine.", "GPT");
+                        // Enregistrez les données dans un fichier ici si nécessaire
+                    } else if (utilisateur_question.includes(":")) {
+                        var [question, reponse] = utilisateur_question.split(":");
+                        question = question.trim();
+                        reponse = reponse.trim();
+                        donnees_apprentissage[question] = reponse;
+                        enregistrer_donnees();
+                        showMessage("GPT : J'ai appris la réponse à la question : " + question, "GPT");
+                    } else {
+                        var reponse = donnees_apprentissage[utilisateur_question] || "Je ne connais pas la réponse à cette question.";
+                        showMessage("GPT : " + reponse, "GPT");
+                    }
+
+                    messageInput.val("");  // Effacez l'entrée utilisateur
+                }
+
+                // Gestionnaire de clic sur le bouton "Envoyer"
+                sendButton.click(sendMessage);
+
+                // Gestionnaire de pression de touche pour la touche "Entrée"
+                messageInput.keypress(function(event) {
+                    if (event.keyCode === 13) {
+                        sendMessage();
+                    }
+                });
             });
         </script>
     </body>
@@ -113,4 +84,5 @@ def chat():
     """
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    donnees_apprentissage = charger_donnees()  # Chargez les données depuis le fichier JSON (si disponible)
+    app.run(debug=True)
