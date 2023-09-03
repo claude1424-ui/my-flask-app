@@ -1,10 +1,8 @@
 import os
+import requests
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
-
-# Stockage des messages
-messages = []
 
 # Emplacement du fichier de données
 donnees_fichier = "donnees.txt"
@@ -25,6 +23,13 @@ def enregistrer_donnees(donnees):
     with open(donnees_fichier, 'w') as file:
         for question, reponse in donnees.items():
             file.write(f"{question}:{reponse}\n")
+
+# Fonction pour rechercher sur Internet et générer une réponse
+def recherche_internet(question):
+    # Ici, vous pouvez implémenter votre logique de recherche sur Internet
+    # Par exemple, en utilisant des API de moteurs de recherche ou des bibliothèques de web scraping
+    # Pour l'exemple, nous retournons simplement un texte fictif
+    return f"Réponse générée à partir de la recherche sur Internet pour la question : '{question}'"
 
 @app.route('/')
 def chat():
@@ -112,7 +117,7 @@ def chat():
 
             function addMessage(message, isUser) {
                 var messageElement = document.createElement('p');
-                messageElement.textContent = (isUser ? 'Vous : ' : 'Gpt : ') + message;
+                messageElement.textContent = (isUser ? 'Vous : ' : 'GPT : ') + message;
                 messageElement.className = isUser ? 'user-message' : 'gpt-message';
                 chatDiv.appendChild(messageElement);
             }
@@ -123,28 +128,19 @@ def chat():
                 if (message.trim() !== '') {
                     addMessage(message, true);
                     messageInput.value = '';
-                    // Envoyer le message au serveur ou effectuer le traitement souhaité ici
-                    // Par exemple, vous pouvez utiliser une requête AJAX pour envoyer le message au serveur Flask
-                    sendMessageToServer(message);
+
+                    // Envoyer la question au serveur
+                    fetch('/process_message', {
+                        method: 'POST',
+                        body: JSON.stringify({ message: message }),
+                        headers: { 'Content-Type': 'application/json' },
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            addMessage(data.message, false);
+                        });
                 }
             });
-
-            // Fonction pour envoyer le message au serveur
-            function sendMessageToServer(message) {
-                fetch('/process_message', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message: message })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    var responseMessage = data.message;
-                    addMessage(responseMessage, false);
-                })
-                .catch(error => console.error('Erreur lors de l\'envoi du message :', error));
-            }
         </script>
     </body>
     </html>
@@ -168,8 +164,13 @@ def process_message():
         enregistrer_donnees(donnees_apprentissage)
         response = f"J'ai appris la réponse à la question : '{question}'"
     else:
-        reponse = donnees_apprentissage.get(message, "Je ne connais pas la réponse à cette question.")
-        response = "GPT : " + reponse
+        if message in donnees_apprentissage:
+            reponse = donnees_apprentissage[message]
+            response = "GPT : " + reponse
+        else:
+            # Si la question n'est pas trouvée dans les données, effectuer une recherche sur Internet
+            reponse = recherche_internet(message)
+            response = "GPT : " + reponse
 
     return jsonify({'message': response})
 
