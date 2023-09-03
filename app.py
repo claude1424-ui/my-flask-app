@@ -1,37 +1,14 @@
 import os
-import requests
-from flask import Flask, request, jsonify
+import openai
+from flask import Flask, request
 
 app = Flask(__name__)
 
-donnees_fichier = "donnees.txt"
-donnees_url = "https://raw.githubusercontent.com/claude1424-ui/my-flask-app/main/donnees.txt"
+# Configuration de l'API OpenAI (assurez-vous d'ajouter votre propre clé API)
+openai.api_key = "YOUR_OPENAI_API_KEY"
 
-def charger_donnees():
-    donnees = {}
-    try:
-        response = requests.get(donnees_url)
-        if response.status_code == 200:
-            lines = response.text.splitlines()
-            for line in lines:
-                question, reponse = line.strip().split(":")
-                donnees[question.strip()] = reponse.strip()
-    except Exception as e:
-        print(f"Erreur lors du chargement des données : {e}")
-    return donnees
-
-def enregistrer_donnees(donnees):
-    data_to_save = "\n".join([f"{question}:{reponse}" for question, reponse in donnees.items()])
-    try:
-        response = requests.put(donnees_url, data=data_to_save)
-        if response.status_code == 200:
-            print("Données enregistrées avec succès.")
-    except Exception as e:
-        print(f"Erreur lors de l'enregistrement des données : {e}")
-
-def recherche_internet(question):
-    # Implémentez ici votre logique de recherche sur Internet
-    return f"Réponse générée à partir de la recherche sur Internet pour la question : '{question}'"
+# Stockage des messages
+messages = []
 
 @app.route('/')
 def chat():
@@ -39,7 +16,7 @@ def chat():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Chat GPT</title>
+        <title>Chat GPT-3</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -106,12 +83,13 @@ def chat():
         </style>
     </head>
     <body>
-        <h1>Chat GPT</h1>
+        <h1>Chat GPT-3</h1>
         <div id="chat-container">
             <div id="chat"></div>
-            <input type="text" id="message" placeholder="Entrez votre message">
+            <input type="text" id="message" placeholder="Posez une question">
             <button id="send">Envoyer</button>
         </div>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script>
             var chatDiv = document.getElementById('chat');
             var messageInput = document.getElementById('message');
@@ -119,27 +97,27 @@ def chat():
 
             function addMessage(message, isUser) {
                 var messageElement = document.createElement('p');
-                messageElement.textContent = (isUser ? 'Vous : ' : 'GPT : ') + message;
+                messageElement.textContent = (isUser ? 'Vous : ' : 'Gpt-3 : ') + message;
                 messageElement.className = isUser ? 'user-message' : 'gpt-message';
                 chatDiv.appendChild(messageElement);
             }
 
+            // Gestionnaire d'événement pour le bouton d'envoi
             sendButton.addEventListener('click', function() {
                 var message = messageInput.value;
                 if (message.trim() !== '') {
                     addMessage(message, true);
                     messageInput.value = '';
 
-                    fetch('/process_message', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ message: message }),
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        addMessage(data.message, false);
+                    // Envoyer le message au serveur Python pour obtenir une réponse de GPT-3
+                    $.ajax({
+                        type: 'POST',
+                        url: '/ask',
+                        data: JSON.stringify({ question: message }),
+                        contentType: 'application/json',
+                        success: function(data) {
+                            addMessage(data.answer, false);
+                        }
                     });
                 }
             });
@@ -148,29 +126,24 @@ def chat():
     </html>
     """
 
-@app.route('/process_message', methods=['POST'])
-def process_message():
-    data = request.get_json()
-    message = data.get('message', '')
+@app.route('/ask', methods=['POST'])
+def ask():
+    question = request.json['question']
+    
+    # Utilisez OpenAI GPT-3 pour obtenir une réponse à la question
+    response = openai.Completion.create(
+        engine="text-davinci-002",
+        prompt=f"Répondez à la question suivante : {question}\nRéponse :",
+        max_tokens=50
+    )
 
-    donnees_apprentissage = charger_donnees()
+    answer = response.choices[0].text.strip()
 
-    if ":" in message:
-        question, reponse = message.split(":")
-        question = question.strip()
-        reponse = reponse.strip()
-        donnees_apprentissage[question] = reponse
-        enregistrer_donnees(donnees_apprentissage)
-        response = f"J'ai appris la réponse à la question : '{question}'"
-    else:
-        if message in donnees_apprentissage:
-            reponse = donnees_apprentissage[message]
-            response = "GPT : " + reponse
-        else:
-            reponse = recherche_internet(message)
-            response = "GPT : " + reponse
+    # Ajouter la réponse à la liste des messages
+    messages.append(('Vous : ' + question, True))
+    messages.append(('Gpt-3 : ' + answer, False))
 
-    return jsonify({'message': response})
+    return {'answer': answer}
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
