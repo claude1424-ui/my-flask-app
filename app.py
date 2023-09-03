@@ -11,11 +11,15 @@ def chat():
                 background-color: #f0f0f0;
                 margin: 0;
                 padding: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
             }
 
             .container {
-                max-width: 800px;
-                margin: 0 auto;
+                max-width: 600px;
+                width: 100%;
                 padding: 20px;
                 background-color: #fff;
                 border: 1px solid #ccc;
