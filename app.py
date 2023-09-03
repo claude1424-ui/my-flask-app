@@ -9,12 +9,6 @@ donnees_url = "https://raw.githubusercontent.com/claude1424-ui/my-flask-app/main
 
 def charger_donnees():
     donnees = {}
-    if os.path.exists(donnees_fichier):
-        with open(donnees_fichier, 'r') as file:
-            lines = file.readlines()
-            for line in lines:
-                question, reponse = line.strip().split(":")
-                donnees[question.strip()] = reponse.strip()
     try:
         response = requests.get(donnees_url)
         if response.status_code == 200:
@@ -27,9 +21,6 @@ def charger_donnees():
     return donnees
 
 def enregistrer_donnees(donnees):
-    with open(donnees_fichier, 'w') as file:
-        for question, reponse in donnees.items():
-            file.write(f"{question}:{reponse}\n")
     data_to_save = "\n".join([f"{question}:{reponse}" for question, reponse in donnees.items()])
     try:
         response = requests.put(donnees_url, data=data_to_save)
